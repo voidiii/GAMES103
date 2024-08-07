@@ -123,7 +123,7 @@ public class Rigid_Bunny : MonoBehaviour
 		Vector3 Vt = V - Vn;
 		Matrix4x4 I = R * I_ref * R.inverse;
 
-		float a = Mathf.Max(1 - 0.5f * (1 + restitution) * Vn.magnitude / Vt.magnitude, 0);
+		float a = Mathf.Max(1 - 0.9f * (1 + restitution) * Vn.magnitude / Vt.magnitude, 0);
 		Vector3 V_new = - restitution * Vn + a * Vt;
 
 		Matrix4x4 K = Matrix4x4.identity;
@@ -133,19 +133,13 @@ public class Rigid_Bunny : MonoBehaviour
 		}
 		
 		K = Subtract(K, Get_Cross_Matrix(X) * I.inverse * Get_Cross_Matrix(X));
-		Vector3 J = K.inverse * (V_new - V);
+		Vector3 J = K.inverse.MultiplyVector(V_new - V);
 
 		v += J / mass;
 		w += I.inverse.MultiplyVector(Vector3.Cross(X, J));
-		
+
 		// 衰减碰撞因子
-		if (v.magnitude < 0.01f)
-		{
-			restitution = 0;
-		}
-		Debug.Log("J / mass: " + J / mass);
-		Debug.Log("I.inverse.MultiplyVector(Vector3.Cross(R.MultiplyPoint3x4(X), J)): " + I.inverse.MultiplyVector(Vector3.Cross(X, J)));
-        
+		restitution = Mathf.Min(v.magnitude * v.magnitude, 0.5f);
 	}
 
 	// Update is called once per frame
@@ -178,13 +172,13 @@ public class Rigid_Bunny : MonoBehaviour
 			// Part III: Update position & orientation
 			//Update linear status
 			Vector3 x    = transform.position;
-			v.x = v.x * linear_decay;
-			v.z = v.z * linear_decay;
+			v = v * linear_decay;
 			x += v * dt;
 			//Update angular status
 			Quaternion q = transform.rotation;
-			Quaternion deltaRotation = Quaternion.Euler(w * Mathf.Rad2Deg * dt);
-			q = q * deltaRotation;
+			Vector3 tmp = w * dt / 2;
+			Quaternion tmp1 = new Quaternion(tmp.x, tmp.y, tmp.z, 0) * q;
+			q = Quaternion(tmp1.x + q.x, tmp1.y + q.y, tmp1.z + q.z, tmp1.w + q.w).normalized;;
 
 			// Part IV: Assign to the object
 			transform.position = x;
